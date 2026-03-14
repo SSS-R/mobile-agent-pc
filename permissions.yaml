@@ -25,11 +25,11 @@ blocked_paths:
   - /proc/*
   - /sys/*
   - /dev/*
-  - */.env
-  - */.env.*
-  - */credentials.*
-  - */*password*
-  - */*secret*
+  - '**/.env'
+  - '**/.env.*'
+  - '**/credentials.*'
+  - '**/*password*'
+  - '**/*secret*'
 
 # File access restrictions
 file_restrictions:
