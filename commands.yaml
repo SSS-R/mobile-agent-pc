@@ -1,0 +1,184 @@
+# Command Allowlist Configuration
+# Mobile Agent PC - Phase 2C: Command Security Foundation
+#
+# SECURITY NOTE: This defines which commands CAN and CANNOT be executed
+# via the mobile interface. Read-only commands only for MVP.
+
+# Default policy: DENY (only explicitly allowed commands can run)
+default_policy: deny
+
+# Allowed commands (MVP - read-only only)
+# These commands are safe for remote execution
+allowed_commands:
+  # File listing
+  - ls
+  - fd
+  - fdfind
+  
+  # File reading
+  - cat
+  - head
+  - tail
+  
+  # Search
+  - grep
+  - rg
+  
+  # Git (read-only operations)
+  - git status
+  - git diff
+  - git log
+  
+  # Directory
+  - pwd
+  
+  # System info (read-only)
+  - uname
+  - whoami
+  - date
+  - df
+  - du
+
+# Denied commands (explicitly blocked)
+# These commands are NEVER allowed, even if user requests them
+denied_commands:
+  # File destruction
+  - rm
+  - shred
+  - wipe
+  
+  # File moves/changes
+  - mv
+  - cp  # Can copy sensitive files
+  - chmod
+  - chown
+  
+  # Disk operations
+  - dd
+  - mkfs
+  - fdisk
+  - mount
+  - umount
+  
+  # Privilege escalation
+  - sudo
+  - su
+  - pkexec
+  
+  # Package management
+  - apt
+  - apt-get
+  - yum
+  - dnf
+  - pip
+  
+  # System control
+  - systemctl
+  - service
+  - reboot
+  - shutdown
+  - poweroff
+  - halt
+  
+  # Shell access (bypasses all restrictions)
+  - bash
+  - sh
+  - zsh
+  - fish
+  - dash
+  - exec
+  
+  # Network (potential security risk)
+  - curl
+  - wget
+  - nc
+  - netcat
+  - ssh
+  - scp
+  
+  # Process control
+  - kill
+  - pkill
+  - killall
+  
+  # User management
+  - useradd
+  - userdel
+  - usermod
+  - passwd
+  
+  # Other dangerous
+  - nohup
+  - screen
+  - tmux
+  - cron
+  - crontab
+
+# Command argument restrictions
+# Even allowed commands can be dangerous with certain arguments
+argument_restrictions:
+  # Commands that should never have -rf or similar flags
+  rm:
+    blocked_args:
+      - "-r"
+      - "-R"
+      - "-rf"
+      - "-fr"
+      - "--recursive"
+  
+  # git commands - only read-only subcommands allowed
+  git:
+    allowed_subcommands:
+      - status
+      - diff
+      - log
+      - branch
+      - remote
+    denied_subcommands:
+      - push
+      - commit
+      - reset
+      - rebase
+      - filter-branch
+
+# Path restrictions for commands
+# Some commands should only run in specific directories
+path_restrictions:
+  # All commands restricted to allowed_paths from permissions.yaml
+  all_commands:
+    require_absolute_paths: true
+    block_parent_traversal: true
+    resolve_symlinks: true
+
+# Output restrictions
+output_restrictions:
+  # Maximum output size (bytes)
+  max_output_size: 1048576  # 1MB
+  
+  # Truncate long output
+  truncate_long_output: true
+  
+  # Redact sensitive patterns in output
+  redact_patterns:
+    - "-----BEGIN.*KEY-----"
+    - "password.*=.*"
+    - "secret.*=.*"
+    - "token.*=.*"
+    - "api_key.*=.*"
+
+# Audit logging
+audit:
+  # Log all command attempts (allowed and denied)
+  log_all_attempts: true
+  
+  # Log file path (relative to project root)
+  log_file: logs/command_audit.log
+  
+  # Include in logs: timestamp, command, args, decision, reason
+  log_fields:
+    - timestamp
+    - command
+    - arguments
+    - decision
+    - reason
+    - user
