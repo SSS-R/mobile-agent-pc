@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test Client</title>
+    <style>
+        body { font-family: monospace; max-width: 800px; margin: 40px auto; padding: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .connected { background: #d4edda; color: #155724; }
+        .disconnected { background: #f8d7da; color: #721c24; }
+        #messages { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; margin: 10px 0; }
+        .msg { margin: 5px 0; padding: 5px; border-radius: 3px; }
+        .sent { background: #d1ecf1; color: #0c5460; }
+        .received { background: #e2e3e5; color: #383d41; }
+        input, button { padding: 8px; margin: 5px 0; }
+        button { cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Test Client</h1>
+    
+    <div id="status" class="status disconnected">Disconnected</div>
+    
+    <div>
+        <label>Token: <input type="text" id="token" value="mvp-secret-token-123" style="width: 300px;"></label>
+    </div>
+    
+    <div id="messages"></div>
+    
+    <div>
+        <input type="text" id="messageInput" placeholder="Type message..." style="width: 400px;">
+        <button onclick="sendMessage()">Send</button>
+        <button onclick="connect()">Connect</button>
+        <button onclick="disconnect()">Disconnect</button>
+    </div>
+
+    <script>
+        let ws = null;
+        const statusEl = document.getElementById('status');
+        const messagesEl = document.getElementById('messages');
+        const tokenInput = document.getElementById('token');
+        const messageInput = document.getElementById('messageInput');
+
+        function log(message, type) {
+            const div = document.createElement('div');
+            div.className = `msg ${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            messagesEl.appendChild(div);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        function updateStatus(connected) {
+            statusEl.textContent = connected ? 'Connected' : 'Disconnected';
+            statusEl.className = `status ${connected ? 'connected' : 'disconnected'}`;
+        }
+
+        function connect() {
+            const token = tokenInput.value;
+            ws = new WebSocket(`ws://127.0.0.1:8765/ws?token=${token}`);
+            
+            ws.onopen = () => {
+                updateStatus(true);
+                log('Connected to server', 'received');
+            };
+            
+            ws.onmessage = (event) => {
+                log(`Server: ${event.data}`, 'received');
+            };
+            
+            ws.onclose = () => {
+                updateStatus(false);
+                log('Connection closed', 'received');
+            };
+            
+            ws.onerror = (error) => {
+                log(`Error: ${error}`, 'received');
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function sendMessage() {
+            const message = messageInput.value;
+            if (!message) return;
+            
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('Not connected. Click Connect first.', 'received');
+                return;
+            }
+            
+            ws.send(message);
+            log(`You: ${message}`, 'sent');
+            messageInput.value = '';
+        }
+
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        updateStatus(false);
+    </script>
+</body>
+</html>
