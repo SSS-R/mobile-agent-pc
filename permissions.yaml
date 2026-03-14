@@ -1,0 +1,92 @@
+# File Permission Configuration
+# Mobile Agent PC - Phase 2A: Read-Only Security Foundation
+
+# Default policy: DENY (only explicitly allowed paths are accessible)
+default_policy: deny
+
+# Allowed paths (glob patterns supported)
+# Users can only access files matching these patterns
+allowed_paths:
+  - /home/noahsr/projects/*
+  - /home/noahsr/documents/*.txt
+  - /home/noahsr/documents/*.md
+
+# Blocked paths (always denied, even if in allowed_paths)
+# These take precedence over allowed_paths
+blocked_paths:
+  - /home/noahsr/.ssh/*
+  - /home/noahsr/.ssh
+  - /home/noahsr/.git/*
+  - /home/noahsr/.git
+  - /etc/*
+  - /etc
+  - /root/*
+  - /root
+  - /proc/*
+  - /sys/*
+  - /dev/*
+  - */.env
+  - */.env.*
+  - */credentials.*
+  - */*password*
+  - */*secret*
+
+# File access restrictions
+file_restrictions:
+  # Maximum file size that can be read (bytes)
+  max_file_size: 1048576  # 1MB
+  
+  # Allowed file extensions (empty = all text files)
+  allowed_extensions:
+    - .txt
+    - .md
+    - .py
+    - .js
+    - .ts
+    - .json
+    - .yaml
+    - .yml
+    - .html
+    - .css
+    - .log
+    - .rst
+  
+  # Blocked file extensions (never allow)
+  blocked_extensions:
+    - .exe
+    - .sh
+    - .bash
+    - .bin
+    - .so
+    - .dll
+    - .pyc
+    - .pyo
+
+# Path traversal protection
+security:
+  # Resolve symlinks and check final path
+  resolve_symlinks: true
+  
+  # Reject paths containing ..
+  block_parent_directory: true
+  
+  # Require absolute paths only
+  require_absolute_paths: true
+  
+  # Normalize Unicode paths
+  normalize_unicode: true
+
+# Audit logging
+audit:
+  # Log all access attempts (allowed and denied)
+  log_all_access: true
+  
+  # Log file path (relative to project root)
+  log_file: logs/permission_audit.log
+  
+  # Include in logs: timestamp, path, decision, reason
+  log_fields:
+    - timestamp
+    - path
+    - decision
+    - reason
