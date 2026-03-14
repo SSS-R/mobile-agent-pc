@@ -105,6 +105,98 @@ async def list_files(
     # Verify directory exists
     if not os.path.isdir(path):
         raise HTTPException(status_code=404, detail="Directory not found")
+
+
+@app.get("/files/read")
+async def read_file(
+    path: str = Query(..., description="File path to read"),
+):
+    """
+    Read file content (read-only, text files only).
+    
+    Security:
+    - Requires valid auth token
+    - Path must be in allowed_paths config
+    - Blocked paths (.ssh, .git, /etc, /root) are denied
+    - File extension must be in allowed_extensions
+    - File size must be under max_file_size limit
+    - Binary files are rejected
+    
+    Args:
+        path: Absolute file path to read
+        
+    Returns:
+        {"content": "<file content>", "size": <bytes>}
+        
+    Raises:
+        HTTPException 403: Access denied
+        HTTPException 400: Invalid path or binary file
+        HTTPException 404: File not found
+        HTTPException 413: File too large
+        HTTPException 415: Unsupported file type
+    """
+    # Validate path is absolute
+    if not os.path.isabs(path):
+        raise HTTPException(status_code=400, detail="Path must be absolute")
+    
+    # Check file access with permission manager
+    manager = get_manager()
+    allowed, reason = manager.check_access(path, "read")
+    
+    if not allowed:
+        logger.warning(f"File read denied: {path} - {reason}")
+        raise HTTPException(status_code=403, detail=reason)
+    
+    # Verify file exists
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    # Verify it's a file (not directory)
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=400, detail="Not a file")
+    
+    # Check file size (permission manager already checked, but verify)
+    file_size = os.path.getsize(path)
+    file_restrictions = manager.config.get('file_restrictions', {})
+    max_size = file_restrictions.get('max_file_size', 1048576)
+    
+    if file_size > max_size:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large ({file_size} bytes, max {max_size})"
+        )
+    
+    # Check file extension (permission manager already checked, but verify)
+    ext = Path(path).suffix.lower()
+    allowed_exts = file_restrictions.get('allowed_extensions', [])
+    blocked_exts = file_restrictions.get('blocked_extensions', [])
+    
+    if ext in blocked_exts:
+        raise HTTPException(status_code=415, detail=f"File type blocked: {ext}")
+    
+    if allowed_exts and ext not in allowed_exts:
+        raise HTTPException(status_code=415, detail=f"File type not allowed: {ext}")
+    
+    # Read file content (text only)
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        logger.info(f"Read {file_size} bytes from {path}")
+        return {"content": content, "size": file_size}
+        
+    except UnicodeDecodeError as e:
+        logger.warning(f"Binary file detected: {path}")
+        raise HTTPException(
+            status_code=415,
+            detail="Binary file detected. Only text files are supported."
+        )
+    except PermissionError as e:
+        logger.error(f"Permission error reading {path}: {e}")
+        raise HTTPException(status_code=403, detail="Permission denied")
+    except Exception as e:
+        logger.error(f"Error reading {path}: {e}")
+        raise HTTPException(status_code=500, detail="Internal error")
     
     # List directory contents
     try:
