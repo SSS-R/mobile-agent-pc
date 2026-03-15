@@ -105,6 +105,35 @@ async def list_files(
     # Verify directory exists
     if not os.path.isdir(path):
         raise HTTPException(status_code=404, detail="Directory not found")
+    
+    # List directory contents
+    entries = []
+    for entry_name in os.listdir(path):
+        entry_path = os.path.join(path, entry_name)
+        
+        # Check if this entry is accessible
+        entry_allowed, _ = manager.check_access(entry_path, "list")
+        if not entry_allowed:
+            # Skip entries user can't access
+            continue
+        
+        # Get safe metadata only
+        try:
+            if os.path.isdir(entry_path):
+                entries.append(FileEntry(name=entry_name, type='dir'))
+            elif os.path.isfile(entry_path):
+                size = os.path.getsize(entry_path)
+                entries.append(FileEntry(name=entry_name, type='file', size=size))
+            # Skip symlinks, sockets, etc. for safety
+        except (OSError, PermissionError) as e:
+            logger.debug(f"Skipping entry {entry_name}: {e}")
+            continue
+    
+    # Sort: directories first, then files, alphabetically
+    entries.sort(key=lambda x: (x.type != 'dir', x.name.lower()))
+    
+    logger.info(f"Listed {len(entries)} entries in {path}")
+    return entries
 
 
 @app.get("/files/read")

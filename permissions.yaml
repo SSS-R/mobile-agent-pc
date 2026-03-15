@@ -7,6 +7,7 @@ default_policy: deny
 # Allowed paths (glob patterns supported)
 # Users can only access files matching these patterns
 allowed_paths:
+  - /home/noahsr/projects
   - /home/noahsr/projects/*
   - /home/noahsr/documents/*.txt
   - /home/noahsr/documents/*.md
@@ -43,6 +44,8 @@ file_restrictions:
     - .py
     - .js
     - .ts
+    - .tsx
+    - .jsx
     - .json
     - .yaml
     - .yml
