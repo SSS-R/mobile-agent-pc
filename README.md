@@ -191,6 +191,37 @@ lsof -i :8765
 
 ---
 
-## License
+## Quick Test Instructions
 
-MIT License - See LICENSE file for details.
+### Server PC (Local)
+```bash
+# Start backend
+cd /home/noahsr/projects/mobile-agent-pc
+.venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8765 &
+
+# Test endpoints
+curl http://localhost:8765/ping
+curl "http://localhost:8765/files/list?path=/home/noahsr/projects"
+curl "http://localhost:8765/command/preview?cmd=ls%20-la"
+```
+
+### Main PC (Via SSH Tunnel)
+```bash
+# Create tunnel
+ssh -N -L 8765:localhost:8765 noahsr@192.168.0.231
+
+# Test endpoints
+curl http://localhost:8765/ping
+```
+
+### Phone (Via LAN)
+```
+Open browser or use API client:
+http://192.168.0.231:8765/ping
+```
+
+---
+
+## Demo Checklist
+
+See [DEMO_CHECKLIST.md](DEMO_CHECKLIST.md) for complete demo verification steps.
