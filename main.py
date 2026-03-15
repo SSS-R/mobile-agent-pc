@@ -4,7 +4,7 @@ from config import AUTH_TOKEN, PORT, HOST
 import logging
 import os
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 # Import permission manager
 from permissions import get_manager
@@ -234,6 +234,74 @@ async def read_file(
     except Exception as e:
         logger.error(f"Error listing {path}: {e}")
         raise HTTPException(status_code=500, detail="Internal error")
+
+
+# =============================================================================
+# Phase 2C.2: Command Preview API (Read-Only)
+# =============================================================================
+
+class CommandPreview(BaseModel):
+    """Command preview response."""
+    command: str
+    arguments: List[str]
+    is_valid: bool
+    is_allowed: bool
+    reason: str
+    safety_analysis: Dict[str, Any]
+
+
+@app.get("/command/preview", response_model=CommandPreview)
+async def preview_command(
+    cmd: str = Query(..., description="Command string to preview")
+):
+    """
+    Preview a command without executing it.
+    
+    Security:
+    - Validates command against allowlist/denylist
+    - Detects dangerous shell characters
+    - Returns safety analysis
+    - NO execution performed
+    
+    Args:
+        cmd: Command string to preview (e.g., "ls -la /home")
+        
+    Returns:
+        CommandPreview with validation result and safety analysis
+        
+    Raises:
+        HTTPException 400: Invalid command syntax
+    """
+    from command_validator import get_validator
+    
+    # Validate command
+    validator = get_validator()
+    is_valid, reason, info = validator.validate_command(cmd)
+    
+    # Extract command and arguments
+    command = info.get('command', '')
+    arguments = info.get('args', [])
+    
+    # Determine if allowed
+    is_allowed = is_valid and reason == "Command validated successfully"
+    
+    # Build safety analysis
+    safety_analysis = {
+        'shell_characters_detected': any(c in cmd for c in ['|', ';', '&', '$', '`', '>', '<']),
+        'path_traversal_detected': '..' in cmd,
+        'absolute_path_required': True,
+        'command_in_allowlist': command in validator.get_allowed_commands() if command else False,
+        'command_in_denylist': command in validator.get_denied_commands() if command else False,
+    }
+    
+    return CommandPreview(
+        command=command,
+        arguments=arguments,
+        is_valid=is_valid,
+        is_allowed=is_allowed,
+        reason=reason,
+        safety_analysis=safety_analysis
+    )
 
 
 if __name__ == "__main__":
