@@ -139,6 +139,7 @@ async def list_files(
 @app.get("/files/read")
 async def read_file(
     path: str = Query(..., description="File path to read"),
+    authenticated: bool = Depends(verify_auth),
 ):
     """
     Read file content (read-only, text files only).
@@ -281,7 +282,8 @@ class CommandPreview(BaseModel):
 
 @app.get("/command/preview", response_model=CommandPreview)
 async def preview_command(
-    cmd: str = Query(..., description="Command string to preview")
+    cmd: str = Query(..., description="Command string to preview"),
+    authenticated: bool = Depends(verify_auth),
 ):
     """
     Preview a command without executing it.
@@ -309,6 +311,36 @@ async def preview_command(
     
     # Extract command and arguments
     command = info.get('command', '')
+    arguments = info.get('args', [])
+    
+    # Determine if allowed
+    is_allowed = is_valid and reason == "Command validated successfully"
+    
+    # Build safety analysis
+    safety_analysis = {
+        'shell_characters_detected': any(c in cmd for c in ['|', ';', '&', '$', '`', '>', '<']),
+        'path_traversal_detected': '..' in cmd,
+        'absolute_path_required': True,
+        'command_in_allowlist': command in validator.get_allowed_commands() if command else False,
+        'command_in_denylist': command in validator.get_denied_commands() if command else False,
+    }
+    
+    return CommandPreview(
+        command=command,
+        arguments=arguments,
+        is_valid=is_valid,
+        is_allowed=is_allowed,
+        reason=reason,
+        safety_analysis=safety_analysis
+    )
+
+
+if __name__ == "__main__":
+    import uvicorn
+    logger.info(f"Starting server on {HOST}:{PORT}")
+    uvicorn.run(app, host=HOST, port=PORT)
+ort=PORT)
+  command = info.get('command', '')
     arguments = info.get('args', [])
     
     # Determine if allowed
