@@ -1,4 +1,6 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query, Depends, Security
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from config import AUTH_TOKEN, PORT, HOST
 import logging
@@ -14,6 +16,32 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Mobile Agent PC")
+
+# CORS Middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://192.168.0.231:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# HTTP Bearer token security
+security = HTTPBearer(auto_error=False)
+
+def verify_auth(credentials: HTTPAuthorizationCredentials = Security(security)) -> bool:
+    """Verify Bearer token for HTTP requests."""
+    if credentials is None:
+        raise HTTPException(status_code=401, detail="Missing authentication token")
+    if credentials.credentials != AUTH_TOKEN:
+        raise HTTPException(status_code=403, detail="Invalid authentication token")
+    return True
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -311,36 +339,6 @@ async def preview_command(
     
     # Extract command and arguments
     command = info.get('command', '')
-    arguments = info.get('args', [])
-    
-    # Determine if allowed
-    is_allowed = is_valid and reason == "Command validated successfully"
-    
-    # Build safety analysis
-    safety_analysis = {
-        'shell_characters_detected': any(c in cmd for c in ['|', ';', '&', '$', '`', '>', '<']),
-        'path_traversal_detected': '..' in cmd,
-        'absolute_path_required': True,
-        'command_in_allowlist': command in validator.get_allowed_commands() if command else False,
-        'command_in_denylist': command in validator.get_denied_commands() if command else False,
-    }
-    
-    return CommandPreview(
-        command=command,
-        arguments=arguments,
-        is_valid=is_valid,
-        is_allowed=is_allowed,
-        reason=reason,
-        safety_analysis=safety_analysis
-    )
-
-
-if __name__ == "__main__":
-    import uvicorn
-    logger.info(f"Starting server on {HOST}:{PORT}")
-    uvicorn.run(app, host=HOST, port=PORT)
-ort=PORT)
-  command = info.get('command', '')
     arguments = info.get('args', [])
     
     # Determine if allowed
